@@ -1,0 +1,30 @@
+// assets/riddles/math.txt
+Question: I am an odd number. Take away one letter and I become even. What number am I?
+Answer: Seven
+
+Question: What is the value of pi to two decimal places?
+Answer: 3.14
+
+Question: If you multiply me by any number, the answer will always be the same. What number am I?
+Answer: Zero
+
+Question: I add 5 to 9 and get 2. The answer is correct, but how?
+Answer: When it is 9am, add 5 hours and you get 2pm
+
+Question: What three positive numbers give the same result when multiplied and added together?
+Answer: 1, 2, and 3
+
+Question: What is the next number in this sequence: 2, 4, 8, 16, 32?
+Answer: 64
+
+Question: A triangle has sides of length 3, 4, and 5. What type of triangle is it?
+Answer: Right triangle
+
+Question: What is half of two plus two?
+Answer: Three
+
+Question: How many sides does a hexagon have?
+Answer: Six
+
+Question: What is 100 divided by half?
+Answer: 200

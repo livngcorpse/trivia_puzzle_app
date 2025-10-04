@@ -1,0 +1,30 @@
+// assets/anagrams/math.txt
+Word: Triangle
+Hint: Three-sided polygon
+
+Word: Equation
+Hint: Mathematical statement with an equals sign
+
+Word: Fraction
+Hint: Part of a whole number
+
+Word: Diameter
+Hint: Line through the center of a circle
+
+Word: Subtract
+Hint: Take away operation
+
+Word: Multiply
+Hint: Repeated addition
+
+Word: Geometry
+Hint: Study of shapes and angles
+
+Word: Integer
+Hint: Whole number positive or negative
+
+Word: Decimal
+Hint: Number with a point
+
+Word: Addition
+Hint: Combining numbers together

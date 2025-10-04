@@ -1,0 +1,30 @@
+// assets/riddles/physics.txt
+Question: I can travel around the world while staying in a corner. What am I?
+Answer: Stamp
+
+Question: What force keeps planets in orbit around the sun?
+Answer: Gravity
+
+Question: What is the speed of light in vacuum commonly rounded to?
+Answer: 300000 km per second
+
+Question: I am invisible but you can feel me. I can move objects and generate electricity. What am I?
+Answer: Wind
+
+Question: What property of matter is measured in kilograms?
+Answer: Mass
+
+Question: What do you call the bending of light as it passes through different mediums?
+Answer: Refraction
+
+Question: I am the first state of matter to exist in the universe. What am I?
+Answer: Plasma
+
+Question: What unit measures electrical resistance?
+Answer: Ohm
+
+Question: What is the term for energy in motion?
+Answer: Kinetic energy
+
+Question: What particle has no charge but has mass?
+Answer: Neutron

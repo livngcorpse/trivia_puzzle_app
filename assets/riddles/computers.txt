@@ -1,0 +1,30 @@
+// assets/riddles/computers.txt
+Question: What has keys but no locks, space but no room, and you can enter but not go inside?
+Answer: Keyboard
+
+Question: I am the brain of the computer. What am I?
+Answer: CPU
+
+Question: What programming language is named after a type of Indonesian coffee?
+Answer: Java
+
+Question: I can remember everything you tell me, but I forget when you turn me off. What am I?
+Answer: RAM
+
+Question: What does HTTP stand for?
+Answer: Hypertext Transfer Protocol
+
+Question: What is the smallest unit of data in a computer?
+Answer: Bit
+
+Question: I organize files and folders on your computer. What am I?
+Answer: Operating system
+
+Question: What do you call a self-contained program that spreads through networks?
+Answer: Worm
+
+Question: What technology uses light to transmit data at high speeds?
+Answer: Fiber optic
+
+Question: What does URL stand for?
+Answer: Uniform Resource Locator

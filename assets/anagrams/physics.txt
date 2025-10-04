@@ -1,0 +1,30 @@
+// assets/anagrams/physics.txt
+Word: Gravity
+Hint: Force that pulls objects toward Earth
+
+Word: Energy
+Hint: Capacity to do work
+
+Word: Velocity
+Hint: Speed with direction
+
+Word: Momentum
+Hint: Mass times velocity
+
+Word: Electron
+Hint: Negatively charged particle
+
+Word: Photon
+Hint: Particle of light
+
+Word: Magnet
+Hint: Object that attracts iron
+
+Word: Friction
+Hint: Force that opposes motion
+
+Word: Voltage
+Hint: Electric potential difference
+
+Word: Nucleus
+Hint: Center of an atom

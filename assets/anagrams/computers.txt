@@ -1,0 +1,30 @@
+// assets/anagrams/computers.txt
+Word: Algorithm
+Hint: Step-by-step problem-solving procedure
+
+Word: Database
+Hint: Organized collection of data
+
+Word: Software
+Hint: Programs and applications
+
+Word: Hardware
+Hint: Physical computer components
+
+Word: Internet
+Hint: Global computer network
+
+Word: Firewall
+Hint: Security system for networks
+
+Word: Encrypt
+Hint: Convert data into code
+
+Word: Browser
+Hint: Application for viewing websites
+
+Word: Memory
+Hint: Storage for data and programs
+
+Word: Network
+Hint: Connected computers sharing resources
