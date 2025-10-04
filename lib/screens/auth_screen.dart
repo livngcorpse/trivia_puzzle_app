@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../providers/game_provider.dart'; // 👈 import your provider file
+import '../providers/game_provider.dart';
+import '../widgets/sync_choice_dialog.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
@@ -31,8 +32,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         password: _passwordController.text.trim(),
       );
 
-      // ✅ Load data from Supabase and sync locally
-      await ref.read(profileProvider.notifier).loadFromSupabase();
+      // ✅ Check if cloud profile exists and show dialog
+      await _handlePostLogin();
 
       if (mounted) Navigator.pop(context);
     } on AuthException catch (e) {
@@ -45,8 +46,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             password: _passwordController.text.trim(),
           );
 
-          // ✅ Load data for new user as well
-          await ref.read(profileProvider.notifier).loadFromSupabase();
+          // New user - just sync local data to cloud
+          await ref.read(profileProvider.notifier).loadFromSupabase(
+                strategy: SyncStrategy.keepLocal,
+              );
 
           if (mounted) Navigator.pop(context);
         } catch (signupError) {
@@ -65,6 +68,39 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       });
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _handlePostLogin() async {
+    final comparison =
+        await ref.read(profileProvider.notifier).getCloudProfileComparison();
+
+    if (comparison == null) {
+      // No cloud profile exists - first time login, use local
+      await ref.read(profileProvider.notifier).loadFromSupabase(
+            strategy: SyncStrategy.keepLocal,
+          );
+      return;
+    }
+
+    // Show dialog to let user choose
+    if (!mounted) return;
+
+    final strategy = await showDialog<SyncStrategy>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => SyncChoiceDialog(
+        localProfile: comparison['localProfile'],
+        cloudProfile: comparison['cloudProfile'],
+        localTotal: comparison['localTotal'],
+        cloudTotal: comparison['cloudTotal'],
+      ),
+    );
+
+    if (strategy != null) {
+      await ref.read(profileProvider.notifier).loadFromSupabase(
+            strategy: strategy,
+          );
     }
   }
 

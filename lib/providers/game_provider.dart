@@ -28,6 +28,13 @@ final profileProvider =
   return ProfileNotifier(ref);
 });
 
+// ---------- Sync Strategy Enum ----------
+enum SyncStrategy {
+  merge, // Smart merge - keep highest scores
+  keepCloud, // Use cloud profile entirely
+  keepLocal, // Keep local and overwrite cloud
+}
+
 // ---------- Profile Notifier ----------
 
 class ProfileNotifier extends StateNotifier<UserProfile> {
@@ -47,11 +54,6 @@ class ProfileNotifier extends StateNotifier<UserProfile> {
     Supabase.instance.client.auth.onAuthStateChange.listen((authState) {
       final user = authState.session?.user;
       ref.read(currentUserProvider.notifier).state = user;
-
-      if (user != null) {
-        // User logged in - load from Supabase
-        loadFromSupabase();
-      }
     });
   }
 
@@ -116,7 +118,10 @@ class ProfileNotifier extends StateNotifier<UserProfile> {
     }
   }
 
-  Future<void> loadFromSupabase() async {
+  /// ✅ NEW: Load from Supabase with strategy choice
+  Future<void> loadFromSupabase({
+    SyncStrategy strategy = SyncStrategy.merge,
+  }) async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
 
@@ -134,15 +139,27 @@ class ProfileNotifier extends StateNotifier<UserProfile> {
           'subjectScores': response['subject_scores'] ?? [],
         });
 
-        // --- Conflict Resolution: Keep higher score ---
-        if (cloudProfile.totalScore() > state.totalScore()) {
-          print('☁️ Cloud profile has higher score, using it');
-          state = cloudProfile;
-          _save();
-        } else {
-          print('📱 Local profile has higher score, syncing to cloud');
-          await syncToSupabase();
+        // Apply the chosen strategy
+        switch (strategy) {
+          case SyncStrategy.merge:
+            print('🔄 Merging local and cloud profiles...');
+            state = _mergeProfiles(state, cloudProfile);
+            break;
+
+          case SyncStrategy.keepCloud:
+            print('☁️ Using cloud profile');
+            state = cloudProfile;
+            break;
+
+          case SyncStrategy.keepLocal:
+            print('📱 Keeping local profile');
+            // state stays the same, just sync to cloud
+            break;
         }
+
+        _save();
+        await syncToSupabase();
+        print('✅ Sync complete with strategy: ${strategy.name}');
       } else {
         // First time user: push local data to cloud
         print('🆕 New user, syncing local data to cloud');
@@ -150,7 +167,105 @@ class ProfileNotifier extends StateNotifier<UserProfile> {
       }
     } catch (e) {
       print('❌ Error loading from Supabase: $e');
+      rethrow;
     }
+  }
+
+  /// ✅ NEW: Check if cloud profile exists and get comparison data
+  Future<Map<String, dynamic>?> getCloudProfileComparison() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return null;
+
+    try {
+      final response = await Supabase.instance.client
+          .from('profiles')
+          .select()
+          .eq('id', user.id)
+          .maybeSingle();
+
+      if (response != null) {
+        final cloudProfile = UserProfile.fromJson({
+          'username': response['username'] ?? 'Unknown',
+          'avatarIndex': response['avatar_index'] ?? 0,
+          'subjectScores': response['subject_scores'] ?? [],
+        });
+
+        return {
+          'cloudProfile': cloudProfile,
+          'localProfile': state,
+          'cloudTotal': cloudProfile.totalScore(),
+          'localTotal': state.totalScore(),
+        };
+      }
+      return null;
+    } catch (e) {
+      print('❌ Error fetching cloud profile: $e');
+      return null;
+    }
+  }
+
+  /// Merges local and cloud profiles with conflict resolution
+  UserProfile _mergeProfiles(UserProfile local, UserProfile cloud) {
+    // Always prefer remote username/avatar (Option A)
+    final mergedUsername = cloud.username;
+    final mergedAvatarIndex = cloud.avatarIndex;
+
+    // Merge subject scores - keep highest score for each game mode
+    final mergedSubjectScores = <SubjectScore>[];
+
+    for (final subject in ['Math', 'Physics', 'Computers']) {
+      final localSubject = local.subjectScores.firstWhere(
+        (s) => s.subject == subject,
+        orElse: () => SubjectScore(subject: subject, gameModeScores: []),
+      );
+
+      final cloudSubject = cloud.subjectScores.firstWhere(
+        (s) => s.subject == subject,
+        orElse: () => SubjectScore(subject: subject, gameModeScores: []),
+      );
+
+      final mergedGameModes = _mergeGameModeScores(
+        localSubject.gameModeScores,
+        cloudSubject.gameModeScores,
+      );
+
+      mergedSubjectScores.add(SubjectScore(
+        subject: subject,
+        gameModeScores: mergedGameModes,
+      ));
+    }
+
+    return UserProfile(
+      username: mergedUsername,
+      avatarIndex: mergedAvatarIndex,
+      subjectScores: mergedSubjectScores,
+    );
+  }
+
+  /// Merges game mode scores - keeps highest score for each mode
+  List<GameModeScore> _mergeGameModeScores(
+    List<GameModeScore> local,
+    List<GameModeScore> cloud,
+  ) {
+    final Map<String, int> mergedScores = {};
+
+    // Add all local scores
+    for (final score in local) {
+      mergedScores[score.gameMode] = score.score;
+    }
+
+    // Merge cloud scores - keep highest
+    for (final score in cloud) {
+      final existing = mergedScores[score.gameMode];
+      if (existing == null || score.score > existing) {
+        mergedScores[score.gameMode] = score.score;
+      }
+    }
+
+    // Convert back to list
+    return mergedScores.entries
+        .map((e) => GameModeScore(gameMode: e.key, score: e.value))
+        .toList();
   }
 }
 
