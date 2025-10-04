@@ -1,3 +1,4 @@
+// providers/game_provider.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -11,41 +12,60 @@ import '../services/local_data_service.dart';
 final apiServiceProvider = Provider((ref) => ApiService());
 final localDataServiceProvider = Provider((ref) => LocalDataService());
 
-/// Auth state provider to track Supabase auth changes
-final authStateProvider = StreamProvider<AuthState>((ref) {
-  return Supabase.instance.client.auth.onAuthStateChange;
+/// ✅ FIXED: Current user provider (simpler approach)
+final currentUserProvider = StateProvider<User?>((ref) {
+  return Supabase.instance.client.auth.currentUser;
 });
 
-/// Current user provider (nullable)
-final currentUserProvider = Provider<User?>((ref) {
-  return Supabase.instance.client.auth.currentUser;
+/// ✅ Auth state stream provider
+final authStateProvider = StreamProvider<AuthState>((ref) {
+  return Supabase.instance.client.auth.onAuthStateChange;
 });
 
 /// Profile data provider
 final profileProvider =
     StateNotifierProvider<ProfileNotifier, UserProfile>((ref) {
-  return ProfileNotifier();
+  return ProfileNotifier(ref);
 });
 
 // ---------- Profile Notifier ----------
 
 class ProfileNotifier extends StateNotifier<UserProfile> {
-  ProfileNotifier() : super(_loadProfile());
+  final Ref ref;
+
+  ProfileNotifier(this.ref) : super(_loadProfile()) {
+    _initAuthListener();
+  }
 
   static UserProfile _loadProfile() {
     final box = Hive.box<UserProfile>('profile');
     return box.get('user') ?? UserProfile.empty();
   }
 
+  // ✅ Listen to auth changes
+  void _initAuthListener() {
+    Supabase.instance.client.auth.onAuthStateChange.listen((authState) {
+      final user = authState.session?.user;
+      ref.read(currentUserProvider.notifier).state = user;
+
+      if (user != null) {
+        // User logged in - load from Supabase
+        loadFromSupabase();
+      }
+    });
+  }
+
   // ---- Local Updates ----
   void updateUsername(String name) {
     state = state.copyWith(username: name);
     _save();
+    _syncIfLoggedIn();
   }
 
   void updateAvatar(int index) {
     state = state.copyWith(avatarIndex: index);
     _save();
+    _syncIfLoggedIn();
   }
 
   void addScore(String subject, String gameMode, int points) {
@@ -56,10 +76,19 @@ class ProfileNotifier extends StateNotifier<UserProfile> {
     subjectScore.updateScore(gameMode, points);
     state = state.copyWith(subjectScores: [...state.subjectScores]);
     _save();
+    _syncIfLoggedIn();
   }
 
   void _save() {
     Hive.box<UserProfile>('profile').put('user', state);
+  }
+
+  // ✅ Auto-sync if user is logged in
+  void _syncIfLoggedIn() {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user != null) {
+      syncToSupabase();
+    }
   }
 
   // ---- Guest Reset ----
@@ -74,41 +103,53 @@ class ProfileNotifier extends StateNotifier<UserProfile> {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
 
-    await Supabase.instance.client.from('profiles').upsert({
-      'id': user.id,
-      'username': state.username,
-      'avatar_index': state.avatarIndex,
-      'subject_scores': state.toJson()['subjectScores'],
-    });
+    try {
+      await Supabase.instance.client.from('profiles').upsert({
+        'id': user.id,
+        'username': state.username,
+        'avatar_index': state.avatarIndex,
+        'subject_scores': state.toJson()['subjectScores'],
+        'updated_at': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      print('❌ Error syncing to Supabase: $e');
+    }
   }
 
   Future<void> loadFromSupabase() async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
 
-    final response = await Supabase.instance.client
-        .from('profiles')
-        .select()
-        .eq('id', user.id)
-        .maybeSingle();
+    try {
+      final response = await Supabase.instance.client
+          .from('profiles')
+          .select()
+          .eq('id', user.id)
+          .maybeSingle();
 
-    if (response != null) {
-      final cloudProfile = UserProfile.fromJson({
-        'username': response['username'] ?? state.username,
-        'avatarIndex': response['avatar_index'] ?? state.avatarIndex,
-        'subjectScores': response['subject_scores'] ?? [],
-      });
+      if (response != null) {
+        final cloudProfile = UserProfile.fromJson({
+          'username': response['username'] ?? state.username,
+          'avatarIndex': response['avatar_index'] ?? state.avatarIndex,
+          'subjectScores': response['subject_scores'] ?? [],
+        });
 
-      // --- Conflict Resolution ---
-      if (cloudProfile.totalScore() > state.totalScore()) {
-        state = cloudProfile;
-        _save();
+        // --- Conflict Resolution: Keep higher score ---
+        if (cloudProfile.totalScore() > state.totalScore()) {
+          print('☁️ Cloud profile has higher score, using it');
+          state = cloudProfile;
+          _save();
+        } else {
+          print('📱 Local profile has higher score, syncing to cloud');
+          await syncToSupabase();
+        }
       } else {
+        // First time user: push local data to cloud
+        print('🆕 New user, syncing local data to cloud');
         await syncToSupabase();
       }
-    } else {
-      // First time user: push Hive data
-      await syncToSupabase();
+    } catch (e) {
+      print('❌ Error loading from Supabase: $e');
     }
   }
 }

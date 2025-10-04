@@ -25,7 +25,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final profile = ref.watch(profileProvider);
-    final authState = ref.watch(currentUserProvider); // ✅ reactive auth
+    final currentUser = ref.watch(currentUserProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Profile')),
@@ -38,37 +38,63 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             _buildUsernameSection(profile),
             const SizedBox(height: 32),
 
-            // ✅ Handle login/logout reactively
-            authState.when(
-              data: (state) {
-                final user = state?.session?.user;
-                if (user == null) {
-                  return ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const AuthScreen(),
-                        ),
-                      );
-                    },
-                    child: const Text("Login"),
+            // ✅ FIXED: Simpler login/logout UI
+            if (currentUser == null)
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AuthScreen()),
                   );
-                } else {
-                  return ElevatedButton(
+                },
+                icon: const Icon(Icons.login),
+                label: const Text("Login with Email"),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 32,
+                    vertical: 16,
+                  ),
+                ),
+              )
+            else
+              Column(
+                children: [
+                  Text(
+                    '✅ Logged in as: ${currentUser.email}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ElevatedButton.icon(
                     onPressed: () async {
                       await Supabase.instance.client.auth.signOut();
                       await ref.read(profileProvider.notifier).resetToGuest();
-                      setState(() {}); // refresh UI immediately
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Logged out successfully'),
+                          ),
+                        );
+                      }
                     },
-                    child: const Text("Logout"),
-                  );
-                }
-              },
-              loading: () => const CircularProgressIndicator(),
-              error: (_, __) => const Text("Error loading user"),
-            ),
+                    icon: const Icon(Icons.logout),
+                    label: const Text("Logout"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 32,
+                        vertical: 16,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
 
+            const SizedBox(height: 16),
             const Divider(),
             const SizedBox(height: 16),
             Text(
@@ -87,7 +113,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  // Avatar section
+  // Avatar section with image assets
   Widget _buildAvatarSection(profile) {
     return Column(
       children: [
@@ -138,9 +164,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               icon: Icon(_isEditingUsername ? Icons.check : Icons.edit),
               onPressed: () {
                 if (_isEditingUsername) {
-                  ref
-                      .read(profileProvider.notifier)
-                      .updateUsername(_usernameController.text);
+                  final newName = _usernameController.text.trim();
+                  if (newName.isNotEmpty) {
+                    ref.read(profileProvider.notifier).updateUsername(newName);
+                  }
+                } else {
+                  _usernameController.text = profile.username;
                 }
                 setState(() {
                   _isEditingUsername = !_isEditingUsername;
@@ -207,7 +236,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                 ),
               );
-            }).toList(),
+            }),
         ],
       ),
     );
@@ -228,7 +257,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
-  // Avatar picker dialog
+  // ✅ FIXED: Avatar picker with avatar images
   void _showAvatarPicker(int currentIndex) {
     showDialog(
       context: context,
@@ -245,6 +274,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
             itemCount: 20,
             itemBuilder: (context, index) {
+              final isSelected = currentIndex == index;
+
               return InkWell(
                 onTap: () {
                   ref.read(profileProvider.notifier).updateAvatar(index);
@@ -253,8 +284,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 child: Container(
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: currentIndex == index
-                        ? Border.all(color: Colors.blue, width: 3)
+                    border: isSelected
+                        ? Border.all(
+                            color: Theme.of(context).colorScheme.primary,
+                            width: 3,
+                          )
+                        : null,
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .primary
+                                  .withOpacity(0.5),
+                              blurRadius: 8,
+                              spreadRadius: 2,
+                            )
+                          ]
                         : null,
                   ),
                   child: ClipOval(

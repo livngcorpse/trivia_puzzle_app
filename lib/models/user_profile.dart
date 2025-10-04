@@ -31,6 +31,49 @@ class UserProfile extends HiveObject {
       ],
     );
   }
+
+  // ✅ Added copyWith method
+  UserProfile copyWith({
+    String? username,
+    int? avatarIndex,
+    List<SubjectScore>? subjectScores,
+  }) {
+    return UserProfile(
+      username: username ?? this.username,
+      avatarIndex: avatarIndex ?? this.avatarIndex,
+      subjectScores: subjectScores ?? this.subjectScores,
+    );
+  }
+
+  // ✅ Added toJson method
+  Map<String, dynamic> toJson() {
+    return {
+      'username': username,
+      'avatarIndex': avatarIndex,
+      'subjectScores': subjectScores.map((s) => s.toJson()).toList(),
+    };
+  }
+
+  // ✅ Added fromJson factory
+  factory UserProfile.fromJson(Map<String, dynamic> json) {
+    return UserProfile(
+      username: json['username'] ?? 'Player',
+      avatarIndex: json['avatarIndex'] ?? 0,
+      subjectScores: (json['subjectScores'] as List?)
+              ?.map((s) => SubjectScore.fromJson(s))
+              .toList() ??
+          [
+            SubjectScore(subject: 'Math', gameModeScores: []),
+            SubjectScore(subject: 'Physics', gameModeScores: []),
+            SubjectScore(subject: 'Computers', gameModeScores: []),
+          ],
+    );
+  }
+
+  // ✅ Added totalScore method
+  int totalScore() {
+    return subjectScores.fold(0, (sum, s) => sum + s.getTotalScore());
+  }
 }
 
 @HiveType(typeId: 1)
@@ -58,6 +101,25 @@ class SubjectScore {
     );
     existing.score += points;
   }
+
+  // ✅ Added toJson method
+  Map<String, dynamic> toJson() {
+    return {
+      'subject': subject,
+      'gameModeScores': gameModeScores.map((g) => g.toJson()).toList(),
+    };
+  }
+
+  // ✅ Added fromJson factory
+  factory SubjectScore.fromJson(Map<String, dynamic> json) {
+    return SubjectScore(
+      subject: json['subject'] ?? '',
+      gameModeScores: (json['gameModeScores'] as List?)
+              ?.map((g) => GameModeScore.fromJson(g))
+              .toList() ??
+          [],
+    );
+  }
 }
 
 @HiveType(typeId: 2)
@@ -69,4 +131,20 @@ class GameModeScore {
   int score;
 
   GameModeScore({required this.gameMode, required this.score});
+
+  // ✅ Added toJson method
+  Map<String, dynamic> toJson() {
+    return {
+      'gameMode': gameMode,
+      'score': score,
+    };
+  }
+
+  // ✅ Added fromJson factory
+  factory GameModeScore.fromJson(Map<String, dynamic> json) {
+    return GameModeScore(
+      gameMode: json['gameMode'] ?? '',
+      score: json['score'] ?? 0,
+    );
+  }
 }
